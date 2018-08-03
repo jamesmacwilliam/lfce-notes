@@ -351,6 +351,80 @@ now we can `tftp 192.168.1.1 -c get file.txt` to fetch our file from the ftp ser
 
 Demo:
 
+`lscpu` shows us the number of cores, architecture, threads per core, numa nodes (this is the output of the `cat /proc/cpuinfo` file
+
+- generate cpu traffic via `cat /dev/random > /dev/null` repeatedly send random numbers to dev/null
+
+- run `top` and we can see that rngd (the random number generator) is occupying the cpu
+
+Note: `top` shows us the cpu usage, but that doesn't mean it's bad
+top also shows us the load averages: the first number is our 1 minute load average, next is our 5 minute load average, then the 15 minute load average (if they are low, then those are acceptable numbers)
+under the 'Tasks' heading: we see total number of tasks, how man are running/sleeping/stopped/zombie
+we can stop a task with `ctrl + Z` which should then stop the task in `top` use `fg` to start it back up
+'Cpus' us (used) ni (nice processes, priority adjusted) id (idle) wa (wait, it will be low for us because it's all random numbers), hi (hardware interrupts) si (software interrupts) st (time stolen from hypervisor)
+
+`w` command: outputs load averages and logging locations
+`uptime` gives us uptime + load averages
+
+`dd if=/dev/zero of=test1.img bs=1 count=100000 oflag=sync` (specific writes to file)
+    input file    output file  block size  count  oflag (each io will be synchronous)
+
+now run `top` and notice the wait and si (software interrupt) times go up, this means something is slowing the IO in your system (we'll see this behavior with networking problems, or with disk IO saturation (too much IO)
+
+ ## Memory
+- physical/virtual  (processes don't have access to physical, only virtual)
+- both physical and virtual are broken up into pages which allows us to use memory management tech. called swapping
+- 'Swapping' we can move a page from physical memory to the hard disk if it is unused, then we can re-use the physical memory for another application (called a swap out).  This swap out also occurs if the demand for memory is very great in another application (starts with the oldest pages first)  called 'demand paging'
+- if a process tries to access the memory that's been moved to disk, we page fault and therefore need to 'swap in' the memory.  Excessive swapping means we have too little memory.  You can adjust the swappiness per process but generally you should leave it alone.
+
+* What to look for:
+    - high consumers of space (physical/virtual)
+    - excessive swapping
+    - file system cache - frequently accessed files and dir are stored in the cache
+
+Demo:
+`cat /proc/meminfo | sort`
+  - memTotal/MemFree (useful to deep dive into memory layout)
+  - `free -m` will give us most of the useful info that we'll need (free space in megabytes)
+`dd if=/dev/zero of=test1.img bs=1 count=100000` (same test we used before, but without the sync flag) we get a massive improvement by allowing use of the file system cache (low memory can kill performance if we can't use file system cache)
+
+`top` once in top, press `f` to change sort and then `q` to go back to re-sorted results (ie: sort by memory %)  VIRT + RES should match if we are not paging, otherwise it means we're swapping
+
+`vmstat 1 20` (take a snapshot of our memory 20 times, useful to get an idea of what our memory situation looks like si swap in so swap out, is it all swap in?  probably a memory intensive process)
+
+yum install dstat, `dstat`  # same output as vmstat but formatted a bit nicer
+
+ ## Disk
+- sectors (actual storage)
+- blocks (logical)
+- disk have finite performance:
+  * bandwidth: how much data
+  * latency: how fast
+
+disk access:
+ - sequential: useful for HDD since the head is moving along a disk
+ - random: next block is not next to the one before it
+ -
+Demo:
+`yum install iotop`
+`dd if=/dev/zero of=test1.img bs=1 oflag=sync`
+`iotop` # shows us the user and the disk reads/writes swap and the IO wait
+`sudo blockdev --getbsz /dev/sda2` (replace /dev/sda2 with your drive) shows the block size for your drive  (smaller IO's have lower latency but higher IO will consume more bandwidth) optimize for bandwidth then > optimize for latency? smaller IO
+
+when monitoring networks, what to look for:
+- saturated interface (do we need more of them)
+- bandwidth/latency
+- queuing on interfaces
+- packet drops
+
+Demo:
+`sudo yum install iptraf-ng`
+`sudo iptraf-ng` on server 1 -> IP Traffic Monitor -> All Interfaces (all packet transfer)
+`ss -t4` shows us the queing, if the queing is high for a small period of time, not an issue, only if it is high for awhile.
+
+ ## Baseline/Benchmarking
+- 
+
 
 next up:
 https://app.pluralsight.com/player?course=advanced-network-system-administration-lfce&author=anthony-nocentino&name=advanced-network-system-administration-lfce-m3&clip=3
